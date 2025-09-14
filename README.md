@@ -1,36 +1,163 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Notes SaaS — Multi-tenant Notes App
 
-## Getting Started
+## 🚀 Summary
+This is a **multi-tenant SaaS Notes application** built with **Next.js App Router** + **Prisma** + **PostgreSQL**.  
+It uses **shared-schema multi-tenancy** with role-based access and subscription gating:
 
-First, run the development server:
+- **Free plan** → up to 3 notes per tenant
+- **Pro plan** → unlimited notes
+- **Admin users** can manage tenant plans
+- **Member users** can create and manage their own notes
 
+Designed for easy **local development** and **deployment to Vercel**.
+
+---
+
+## 🏗 Multi-Tenancy Model
+- **Approach**: Shared schema — every `User`, `Note`, etc. row has a `tenantId`.
+- **Why**: Simpler queries, easier seeding, good fit for hackathons/tests.
+
+---
+
+## 👥 Predefined Tenants & Accounts
+Seeded with two tenants and demo users:
+
+### Tenant: `acme`
+- **Admin** → `admin@acme.test` / `password`
+- **Member** → `user@acme.test` / `password`
+
+### Tenant: `globex`
+- **Admin** → `admin@globex.test` / `password`
+- **Member** → `user@globex.test` / `password`
+
+All passwords are hashed with **bcrypt**.
+
+---
+
+## 🔌 API Endpoints
+All APIs are exposed at **root paths** for simplicity:
+
+### Health
+- `GET /health`  
+  → `{ "status": "ok" }`
+
+### Authentication
+- `POST /auth/login`  
+  Body: `{ "email": "...", "password": "..." }`  
+  → `{ token, user }`  
+  (Use `Authorization: Bearer <token>` for all subsequent calls)
+
+### Notes
+- `GET /notes` → list all notes for caller’s tenant
+- `POST /notes` → create note (fails if tenant plan = FREE and already has 3 notes)
+- `GET /notes/:id` → get note by ID (tenant-isolated)
+- `PUT /notes/:id` → update note
+- `DELETE /notes/:id` → delete note
+
+### Tenant Management
+- `POST /tenants/:slug/upgrade` → Admin only, upgrades tenant to **Pro** (removes note limit)
+
+---
+
+## 📦 Run Locally
+
+1. Clone repo and install deps:
+   ```bash
+   npm install
+  ```
+2. Create .env:
+   ```bash
+   DATABASE_URL="postgresql://user:pass@localhost:5432/notesdb"
+   JWT_SECRET="supersecret123"
+   ```
+
+3. Run migrations:
+   ```bash
+   npx prisma migrate dev --name init
+   ```
+
+4. Seed database:
+   ```bash
+  npx prisma migrate dev --name init
+   ```
+
+5. Start dev server:
+   ```bash
+   npm run dev
+   ```
+6. `Visit: http://localhost:3000`
+
+## 🔒 Security Notes
+
+- Passwords stored using bcrypt (10 salt rounds).
+
+- JWT signed with JWT_SECRET (use long random string in production).
+
+- CORS currently set to * for testing; restrict origins in production.
+
+## ✅ Validation Checklist
+
+Automated tests will check:
+
+- GET /health returns ok
+
+- Can log in with each predefined account
+
+- Tenant isolation enforced (cannot read others’ notes)
+
+- Free tenant limited to 3 notes
+
+- After `/tenants/:slug/upgrade`, tenant can create unlimited notes
+
+- Non-admin cannot upgrade tenant.
+
+## 🗂 Project Structure
+
+/saas-notes
+ ├── /prisma
+ │    ├── schema.prisma          # Prisma schema
+ │    └── seed.ts                # Seeds tenants, users, notes
+ ├── /src
+ │    ├── /app
+ │    │    ├── page.tsx          # Login/dashboard UI
+ │    │    ├── api
+ │    │    │    ├── auth
+ │    │    │    │    └── login/route.ts
+ │    │    │    ├── notes
+ │    │    │    │    ├── route.ts
+ │    │    │    │    └── [id]/route.ts
+ │    │    │    ├── tenants
+ │    │    │    │    └── [slug]/upgrade/route.ts
+ │    │    │    └── health/route.ts
+ │    │    └── components        # Reusable UI components
+ │    └── /lib
+ │         ├── auth.ts           # JWT helpers
+ │         └── prisma.ts         # Prisma client
+ ├── package.json
+ ├── tsconfig.json
+ └── README.md
+
+## 🧪 Example Requests
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+curl -X POST http://localhost:3000/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@acme.test","password":"password"}'
+
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Create Note
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+curl -X POST http://localhost:3000/notes \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
+  -d '{"title":"Hello","content":"World"}'
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
 
-## Learn More
+---
+      
 
-To learn more about Next.js, take a look at the following resources:
+   
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
