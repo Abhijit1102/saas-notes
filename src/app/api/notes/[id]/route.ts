@@ -2,18 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyToken } from "@/lib/auth";
 
-interface Params {
-  id: string;
-}
-
 export async function PUT(
   req: NextRequest,
-  context: { params: Params }
+  { params }: { params: { id: string } }
 ) {
   try {
-    const { id } = context.params; // ✅ no await
+    const { id } = params;
 
-    const user = verifyToken(req);
+    const user = await verifyToken(req);
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     const note = await prisma.note.findUnique({ where: { id } });
     if (!note || note.tenantId !== user.tenantId) {
@@ -34,22 +33,23 @@ export async function PUT(
     });
 
     return NextResponse.json(updated);
-  } catch (e) {
-    if (e instanceof Error) {
-      return NextResponse.json({ error: e.message }, { status: 500 });
-    }
-    return NextResponse.json({ error: "Unknown error" }, { status: 500 });
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : "Unknown error";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
 export async function DELETE(
   req: NextRequest,
-  context: { params: Params }
+  { params }: { params: { id: string } }
 ) {
   try {
-    const { id } = context.params;
+    const { id } = params;
 
-    const user = verifyToken(req);
+    const user = await verifyToken(req);
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     const note = await prisma.note.findUnique({ where: { id } });
     if (!note || note.tenantId !== user.tenantId) {
@@ -62,10 +62,8 @@ export async function DELETE(
 
     await prisma.note.delete({ where: { id } });
     return NextResponse.json({ success: true });
-  } catch (e) {
-    if (e instanceof Error) {
-      return NextResponse.json({ error: e.message }, { status: 500 });
-    }
-    return NextResponse.json({ error: "Unknown error" }, { status: 500 });
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : "Unknown error";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
