@@ -35,8 +35,11 @@ export async function GET(req: NextRequest) {
     }
 
     return NextResponse.json([tenant]); // return as array for frontend compatibility
-  } catch (e: any) {
+  } catch (e) {
     console.error("Fetch tenant error:", e);
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    if (e instanceof Error) {
+      return NextResponse.json({ error: e.message }, { status: 500 });
+    }
+    return NextResponse.json({ error: "Unknown error" }, { status: 500 });
   }
 }
